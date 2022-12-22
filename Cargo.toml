@@ -1,0 +1,17 @@
+[package]
+name = "discord-bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+dotenv = "0.15.0"
+serenity = { version = "0.11", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1.21.2", features = ["full"] }
+async-trait = "0.1.59"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1.0"
+strum = "0.24"
+strum_macros = "0.24"
