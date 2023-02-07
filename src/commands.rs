@@ -10,7 +10,6 @@ use crate::util::LocalizedString;
 use crate::handler::{Handler, HandlerError};
 
 pub mod guild;
-mod stats;
 mod option_data;
 
 #[async_trait]

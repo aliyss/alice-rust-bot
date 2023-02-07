@@ -3,6 +3,7 @@ mod builders;
 pub mod handler;
 pub mod util;
 
+use std::time::{SystemTime};
 use commands::CommandsEnum;
 use handler::{Handler, HandlerError};
 use tracing::*;
@@ -15,14 +16,24 @@ use serenity::{
     prelude::{Context, EventHandler, GatewayIntents},
     Client,
 };
-use tokio::try_join;
+
+use serenity::model::gateway::Activity;
+use serenity::prelude::TypeMapKey;
+use tokio::{try_join};
+
+#[derive(Clone, Debug)]
+struct LastChanged(SystemTime);
+
+impl TypeMapKey for LastChanged {
+    type Value = LastChanged;
+}
 
 use crate::commands::{guild::GuildCommands};
 
 #[async_trait]
 impl EventHandler for Handler {
-    #[instrument(skip(self, context))]
-    async fn message(&self, context: Context, msg: Message) {
+    #[instrument(skip(self, _context))]
+    async fn message(&self, _context: Context, _msg: Message) {
         info!("handling message");
     }
 
@@ -46,6 +57,24 @@ impl EventHandler for Handler {
     #[instrument(skip(self, context))]
     async fn interaction_create(&self, context: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(cmd) = interaction {
+
+
+            let last_changed = (context.data.read().await).get::<LastChanged>().cloned();
+            let now = SystemTime::now();
+            if let Some(last_changed) = last_changed {
+                let elapsed = now.duration_since(last_changed.0).unwrap();
+                if elapsed.as_secs() > 20 {
+                    context.set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name)).await;
+                    let mut data = context.data.write().await;
+                    data.insert::<LastChanged>(LastChanged(now));
+                }
+            } else {
+                context.set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name)).await;
+                let mut data = context.data.write().await;
+                data.insert::<LastChanged>(LastChanged(now));
+            }
+
+
             let handle_res = match self
                 .try_handle_commands::<GuildCommands>(&context, &cmd)
                 .await

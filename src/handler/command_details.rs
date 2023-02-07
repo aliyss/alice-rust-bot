@@ -1,5 +1,4 @@
 use serenity::client::Context;
-use serenity::http::CacheHttp;
 use serenity::model::application::interaction::application_command::{ApplicationCommandInteraction, CommandDataOption};
 use serenity::model::guild::Member;
 
@@ -27,7 +26,10 @@ pub async fn parse_command_members(option: &CommandDataOption, context: &Context
             selected_users.push(i)
         } else if nickname.to_lowercase().contains(&string_value) {
             selected_users.push(i)
+        } else if let Some(_) = &cmd.data.resolved.members.iter().find(|&x| x.0 == &i.user.id) {
+            selected_users.push(i)
         }
     }
+
     selected_users
 }

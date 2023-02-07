@@ -1,4 +1,4 @@
-pub mod stats;
+pub mod server;
 pub mod user;
 
 use std::{collections::HashMap, str::FromStr};
@@ -14,13 +14,13 @@ use strum_macros::{AsRefStr, Display, EnumIter};
 use thiserror::Error;
 
 use crate::{util::LocalizedString, Handler, HandlerError};
-use self::{stats::GuildStatsCmd, user::GuildUserCmd};
+use self::{server::GuildServerCmd, user::GuildUserCmd};
 
 use super::{AppCmd, CommandsEnum};
 
 #[derive(Debug, Clone, Copy, AsRefStr, Display, EnumIter, PartialEq, Eq, Hash)]
 pub enum GuildCommands {
-    Stats,
+    Server,
     User
 }
 
@@ -28,7 +28,7 @@ impl GuildCommands {
     pub fn to_application_command(self) -> CreateApplicationCommand {
         match self {
             GuildCommands::User => GuildUserCmd::to_application_command(),
-            GuildCommands::Stats => GuildStatsCmd::to_application_command(),
+            GuildCommands::Server => GuildServerCmd::to_application_command(),
         }
     }
 
@@ -39,7 +39,7 @@ impl GuildCommands {
     pub fn name(self) -> LocalizedString {
         match self {
             GuildCommands::User => GuildUserCmd::name(),
-            GuildCommands::Stats => GuildStatsCmd::name(),
+            GuildCommands::Server => GuildServerCmd::name(),
         }
     }
 }
@@ -53,7 +53,7 @@ impl CommandsEnum for GuildCommands {
         context: &Context
     ) -> Result<(), HandlerError> {
         match self {
-            GuildCommands::Stats => GuildStatsCmd::handle(cmd, handler, context),
+            GuildCommands::Server => GuildServerCmd::handle(cmd, handler, context),
             GuildCommands::User => GuildUserCmd::handle(cmd, handler, context)
         }
             .await
