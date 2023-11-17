@@ -1,4 +1,6 @@
+pub mod ml;
 pub mod server;
+pub mod stock;
 pub mod user;
 
 use std::{collections::HashMap, str::FromStr};
@@ -13,21 +15,25 @@ use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIter};
 use thiserror::Error;
 
+use self::{ml::MLCmd, server::GuildServerCmd, stock::StockCmd, user::GuildUserCmd};
 use crate::{util::LocalizedString, Handler, HandlerError};
-use self::{server::GuildServerCmd, user::GuildUserCmd};
 
 use super::{AppCmd, CommandsEnum};
 
 #[derive(Debug, Clone, Copy, AsRefStr, Display, EnumIter, PartialEq, Eq, Hash)]
 pub enum GuildCommands {
     Server,
-    User
+    Stock,
+    ML,
+    User,
 }
 
 impl GuildCommands {
     pub fn to_application_command(self) -> CreateApplicationCommand {
         match self {
             GuildCommands::User => GuildUserCmd::to_application_command(),
+            GuildCommands::Stock => StockCmd::to_application_command(),
+            GuildCommands::ML => MLCmd::to_application_command(),
             GuildCommands::Server => GuildServerCmd::to_application_command(),
         }
     }
@@ -39,6 +45,8 @@ impl GuildCommands {
     pub fn name(self) -> LocalizedString {
         match self {
             GuildCommands::User => GuildUserCmd::name(),
+            GuildCommands::Stock => StockCmd::name(),
+            GuildCommands::ML => MLCmd::name(),
             GuildCommands::Server => GuildServerCmd::name(),
         }
     }
@@ -50,13 +58,15 @@ impl CommandsEnum for GuildCommands {
         self,
         cmd: &ApplicationCommandInteraction,
         handler: &Handler,
-        context: &Context
+        context: &Context,
     ) -> Result<(), HandlerError> {
         match self {
+            GuildCommands::User => GuildUserCmd::handle(cmd, handler, context),
+            GuildCommands::Stock => StockCmd::handle(cmd, handler, context),
+            GuildCommands::ML => MLCmd::handle(cmd, handler, context),
             GuildCommands::Server => GuildServerCmd::handle(cmd, handler, context),
-            GuildCommands::User => GuildUserCmd::handle(cmd, handler, context)
         }
-            .await
+        .await
     }
 }
 

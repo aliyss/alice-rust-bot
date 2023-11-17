@@ -1,17 +1,18 @@
-mod commands;
 mod builders;
+mod commands;
 pub mod handler;
 pub mod util;
 
-use std::time::{SystemTime};
 use commands::CommandsEnum;
 use handler::{Handler, HandlerError};
+use std::time::SystemTime;
 use tracing::*;
 
 use serenity::{
     async_trait,
     model::prelude::{
-        interaction::{application_command::ApplicationCommandInteraction, Interaction}, Message, Ready,
+        interaction::{application_command::ApplicationCommandInteraction, Interaction},
+        Message, Ready,
     },
     prelude::{Context, EventHandler, GatewayIntents},
     Client,
@@ -19,7 +20,7 @@ use serenity::{
 
 use serenity::model::gateway::Activity;
 use serenity::prelude::TypeMapKey;
-use tokio::{try_join};
+use tokio::try_join;
 
 #[derive(Clone, Debug)]
 struct LastChanged(SystemTime);
@@ -28,7 +29,7 @@ impl TypeMapKey for LastChanged {
     type Value = LastChanged;
 }
 
-use crate::commands::{guild::GuildCommands};
+use crate::commands::guild::GuildCommands;
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -45,9 +46,7 @@ impl EventHandler for Handler {
             guilds = ?ready.guilds.iter().map(|ug| ug.id).collect::<Vec<_>>()
         );
 
-        if let Err(err) = try_join!(
-            self.setup_guild_commands(&context, ready),
-        ) {
+        if let Err(err) = try_join!(self.setup_guild_commands(&context, ready),) {
             error!(?err, "could not setup application commands, shutting down");
             context.shard.shutdown_clean();
             return;
@@ -57,23 +56,24 @@ impl EventHandler for Handler {
     #[instrument(skip(self, context))]
     async fn interaction_create(&self, context: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(cmd) = interaction {
-
-
             let last_changed = (context.data.read().await).get::<LastChanged>().cloned();
             let now = SystemTime::now();
             if let Some(last_changed) = last_changed {
                 let elapsed = now.duration_since(last_changed.0).unwrap();
                 if elapsed.as_secs() > 20 {
-                    context.set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name)).await;
+                    context
+                        .set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name))
+                        .await;
                     let mut data = context.data.write().await;
                     data.insert::<LastChanged>(LastChanged(now));
                 }
             } else {
-                context.set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name)).await;
+                context
+                    .set_activity(Activity::watching(&cmd.member.as_ref().unwrap().user.name))
+                    .await;
                 let mut data = context.data.write().await;
                 data.insert::<LastChanged>(LastChanged(now));
             }
-
 
             let handle_res = match self
                 .try_handle_commands::<GuildCommands>(&context, &cmd)
@@ -110,8 +110,8 @@ impl Handler {
         context: &Context,
         cmd: &ApplicationCommandInteraction,
     ) -> Option<Result<(), HandlerError>>
-        where
-            T: CommandsEnum,
+    where
+        T: CommandsEnum,
     {
         let read = context.data.read().await;
         if let Some(cmd_map) = read.get::<T>() {

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use serenity::builder::CreateApplicationCommand;
 use serenity::futures::{future::try_join_all, stream, StreamExt, TryStreamExt};
 use serenity::{
     model::prelude::{command::Command, Ready},
     prelude::Context,
 };
-use serenity::builder::CreateApplicationCommand;
 use tracing::*;
 
 use crate::commands::{guild::GuildCommands, CommandsEnum};
@@ -16,10 +16,10 @@ impl Handler {
     async fn save_command_ids<T>(
         &self,
         context: &Context,
-        commands: impl Iterator<Item=Command>,
+        commands: impl Iterator<Item = Command>,
     ) -> Result<(), HandlerError>
-        where
-            T: CommandsEnum,
+    where
+        T: CommandsEnum,
     {
         let mut cmd_map = HashMap::new();
         for cmd in commands {
@@ -41,12 +41,13 @@ impl Handler {
         if !ready.guilds.is_empty() {
             let guild_commands_holder = try_join_all(ready.guilds.iter().map(|g| {
                 g.id.set_application_commands(&context, |create| {
-                    let commands: Vec<CreateApplicationCommand> = GuildCommands::application_commands().collect();
-                    create
-                        .set_application_commands(commands);
+                    let commands: Vec<CreateApplicationCommand> =
+                        GuildCommands::application_commands().collect();
+                    create.set_application_commands(commands);
                     create
                 })
-            })).await;
+            }))
+            .await;
 
             match guild_commands_holder {
                 Ok(guild_commands) => {
@@ -68,10 +69,10 @@ impl Handler {
                         return Err(HandlerError::CommandSetup);
                     }
                 }
-                | Err(err) => {
+                Err(err) => {
                     error!(?err, "error registering guild application commands");
                     return Err(HandlerError::CommandSetup);
-                },
+                }
             }
         }
 

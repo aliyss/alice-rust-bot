@@ -1,5 +1,7 @@
-use std::str::FromStr;
 use async_trait::async_trait;
+use serenity::builder::CreateEmbed;
+use serenity::model::guild::Member;
+use serenity::utils::Color;
 use serenity::{
     builder::CreateApplicationCommand,
     model::prelude::{
@@ -8,26 +10,22 @@ use serenity::{
     },
     prelude::Context,
 };
-use serenity::builder::CreateEmbed;
+use std::str::FromStr;
 use tracing::*;
-use serenity::model::guild::Member;
-use serenity::utils::Color;
 
-use crate::{
-    commands::{AppCmd, option_data::*},
-    Handler,
-    HandlerError, util::LocalizedString,
-};
 use crate::builders::roles::{roles_to_field, roles_to_text};
 use crate::handler::command_details::parse_command_members;
-
-use ascii_table::{AsciiTable};
-
-pub const NAME: LocalizedString = LocalizedString {
-    en: "user"
+use crate::{
+    commands::{option_data::*, AppCmd},
+    util::LocalizedString,
+    Handler, HandlerError,
 };
+
+use ascii_table::AsciiTable;
+
+pub const NAME: LocalizedString = LocalizedString { en: "user" };
 pub const DESC: LocalizedString = LocalizedString {
-    en: "Commands accessing the user!"
+    en: "Commands accessing the user!",
 };
 
 pub struct GuildUserCmd;
@@ -40,7 +38,7 @@ enum GuildUserPropertyTypes {
     Created,
     Joined,
     Discriminator,
-    Name
+    Name,
 }
 
 impl FromStr for GuildUserPropertyTypes {
@@ -61,8 +59,11 @@ impl FromStr for GuildUserPropertyTypes {
     }
 }
 
-
-fn create_field_from_embed_types<'b>(embed_types: &Vec<GuildUserPropertyTypes>, member: &Member, mut embed: &'b mut CreateEmbed) -> &'b CreateEmbed {
+fn create_field_from_embed_types<'b>(
+    embed_types: &Vec<GuildUserPropertyTypes>,
+    member: &Member,
+    mut embed: &'b mut CreateEmbed,
+) -> &'b CreateEmbed {
     for i in embed_types {
         match i {
             GuildUserPropertyTypes::Roles => {
@@ -76,19 +77,27 @@ fn create_field_from_embed_types<'b>(embed_types: &Vec<GuildUserPropertyTypes>, 
                 }
             }
             GuildUserPropertyTypes::Nick => {
-                embed.field("Nickname", member.nick.clone().unwrap_or(String::from("No Nickname")), true);
+                embed.field(
+                    "Nickname",
+                    member.nick.clone().unwrap_or(String::from("No Nickname")),
+                    true,
+                );
             }
             GuildUserPropertyTypes::Id => {
-                embed.field("Id", &member.user.id, true);
+                embed.field("Id", member.user.id, true);
             }
             GuildUserPropertyTypes::Created => {
-                embed.field("Created", &member.user.created_at(), true);
+                embed.field("Created", member.user.created_at(), true);
             }
             GuildUserPropertyTypes::Joined => {
                 embed.field("Joined", &member.joined_at.unwrap().to_string(), true);
             }
             GuildUserPropertyTypes::Discriminator => {
-                embed.field("Discriminator", format!("#{:04}", member.user.discriminator), true);
+                embed.field(
+                    "Discriminator",
+                    format!("#{:04}", member.user.discriminator),
+                    true,
+                );
             }
             GuildUserPropertyTypes::Name => {
                 embed.field("Name", &member.user.name, true);
@@ -98,7 +107,10 @@ fn create_field_from_embed_types<'b>(embed_types: &Vec<GuildUserPropertyTypes>, 
     embed
 }
 
-fn create_table_from_embed_types(embed_types: &Vec<GuildUserPropertyTypes>, members: &Vec<Member>) -> String {
+fn create_table_from_embed_types(
+    embed_types: &Vec<GuildUserPropertyTypes>,
+    members: &[Member],
+) -> String {
     let mut ascii_table = AsciiTable::default();
     ascii_table.set_max_width(120);
 
@@ -106,10 +118,13 @@ fn create_table_from_embed_types(embed_types: &Vec<GuildUserPropertyTypes>, memb
 
     let mut m = 0;
 
-    for member in members {
+    members.iter().for_each(|member| {
         data.push(vec![]);
         ascii_table.column(0);
-        data[m].push(format!("{}#{:04}", member.user.name, member.user.discriminator));
+        data[m].push(format!(
+            "{}#{:04}",
+            member.user.name, member.user.discriminator
+        ));
         for i in embed_types {
             match i {
                 GuildUserPropertyTypes::Roles => {
@@ -143,8 +158,7 @@ fn create_table_from_embed_types(embed_types: &Vec<GuildUserPropertyTypes>, memb
             };
         }
         m += 1
-    };
-
+    });
 
     let text = ascii_table.format(&data);
     String::from("```\n") + &text + &*String::from("\n```")
@@ -152,7 +166,11 @@ fn create_table_from_embed_types(embed_types: &Vec<GuildUserPropertyTypes>, memb
 
 fn create_embed_single_member(embed_type: &String, member: &Member) -> CreateEmbed {
     let mut embed = CreateEmbed::default();
-    embed.title(format!("{}#{:04}", member.user.name, member.user.discriminator))
+    embed
+        .title(format!(
+            "{}#{:04}",
+            member.user.name, member.user.discriminator
+        ))
         .description(format!("Created: {}", member.user.created_at()));
     if embed_type != "avatar" {
         if let Some(avatar_url) = member.user.avatar_url() {
@@ -163,7 +181,12 @@ fn create_embed_single_member(embed_type: &String, member: &Member) -> CreateEmb
     }
     match embed_type.as_str() {
         "info" => {
-            let embed_types = vec![GuildUserPropertyTypes::Nick, GuildUserPropertyTypes::Id, GuildUserPropertyTypes::Nick, GuildUserPropertyTypes::Roles];
+            let embed_types = vec![
+                GuildUserPropertyTypes::Nick,
+                GuildUserPropertyTypes::Id,
+                GuildUserPropertyTypes::Nick,
+                GuildUserPropertyTypes::Roles,
+            ];
             embed = create_field_from_embed_types(&embed_types, member, &mut embed).to_owned();
         }
         value => {
@@ -176,10 +199,14 @@ fn create_embed_single_member(embed_type: &String, member: &Member) -> CreateEmb
     embed
 }
 
-fn create_content_multiple_members(embed_type: &String, members: &Vec<Member>) -> String {
-    match embed_type.as_str() {
+fn create_content_multiple_members(embed_type: &str, members: &[Member]) -> String {
+    match embed_type {
         "info" => {
-            let embed_types = vec![GuildUserPropertyTypes::Nick, GuildUserPropertyTypes::Id, GuildUserPropertyTypes::Roles];
+            let embed_types = vec![
+                GuildUserPropertyTypes::Nick,
+                GuildUserPropertyTypes::Id,
+                GuildUserPropertyTypes::Roles,
+            ];
             create_table_from_embed_types(&embed_types, members).to_owned()
         }
         value => {
@@ -193,33 +220,40 @@ fn create_content_multiple_members(embed_type: &String, members: &Vec<Member>) -
     }
 }
 
-fn create_response_members(embed_type: &String, members: &Vec<Member>) -> (String, Vec<CreateEmbed>) {
+fn create_response_members(
+    embed_type: &String,
+    members: &Vec<Member>,
+) -> (String, Vec<CreateEmbed>) {
     let mut embeds = vec![];
     let mut content = String::from("");
 
     match members.len() {
         0 => {
             let mut embed = CreateEmbed::default();
-            embed.title(format!("Error"))
+            embed
+                .title("Error".to_string())
                 .description("No user found!")
                 .color(Color::RED);
             embeds.push(embed)
         }
         1 => {
-            embeds.push(create_embed_single_member(embed_type, members.first().unwrap()));
+            embeds.push(create_embed_single_member(
+                embed_type,
+                members.first().unwrap(),
+            ));
         }
         _ => {
             content = create_content_multiple_members(embed_type, members);
         }
     }
-    return (content, embeds);
+    (content, embeds)
 }
 
 #[async_trait]
 impl AppCmd for GuildUserCmd {
     fn to_application_command() -> CreateApplicationCommand
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut cmd = CreateApplicationCommand::default();
         cmd.name(NAME.en)
@@ -324,8 +358,8 @@ impl AppCmd for GuildUserCmd {
         _handler: &Handler,
         context: &Context,
     ) -> Result<(), HandlerError>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let user_id_options = cmd.data.resolved.users.keys();
         let mut selected_users = Vec::new();
@@ -334,12 +368,12 @@ impl AppCmd for GuildUserCmd {
         }
 
         let mut embeds = vec![];
-        let mut content= String::from("");
+        let mut content = String::from("");
 
         if let Some(response_type) = cmd.data.options.first() {
             for j in &response_type.options {
                 if j.name == "members" {
-                    selected_users = parse_command_members(j, &context, &cmd).await
+                    selected_users = parse_command_members(j, context, cmd).await
                 }
             }
             let response = create_response_members(&response_type.name, &selected_users);
@@ -349,14 +383,14 @@ impl AppCmd for GuildUserCmd {
 
         cmd.create_interaction_response(context, |res| {
             res.interaction_response_data(|d| {
-                if embeds.len() > 0 {
+                if !embeds.is_empty() {
                     d.add_embeds(embeds)
                 } else {
                     d.content(content)
                 }
             })
         })
-            .await?;
+        .await?;
         Ok(())
     }
 

@@ -1,10 +1,11 @@
-use std::env;
-use dotenv::dotenv;
-
 use discord_bot::setup_client;
+use dotenv::dotenv;
+use serenity::futures::TryStreamExt;
+use std::env;
+use time::macros::datetime;
+
 use tracing::*;
 use tracing_subscriber::EnvFilter;
-
 
 #[tokio::main]
 #[instrument]
@@ -18,7 +19,7 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
     // Build our client.
-    let mut client= setup_client(token).await;
+    let mut client = setup_client(token).await;
 
     // Finally, start a single shard, and start listening to events.
     //

@@ -1,5 +1,5 @@
-pub mod commands;
 pub mod command_details;
+pub mod commands;
 
 use thiserror::Error;
 
