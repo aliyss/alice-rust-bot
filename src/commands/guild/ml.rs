@@ -92,13 +92,13 @@ fn sigmoid(v: f64) -> f64 {
     1.0 / (1.0 + f64::exp(-v))
 }
 
-fn forward(neurons: &Vec<Neuron>, x1: f64, x2: f64) -> f64 {
+fn forward(neurons: &[Neuron], x1: f64, x2: f64) -> f64 {
     let a = sigmoid(neurons[0].weight1 * x1 + neurons[0].weight2 * x2 + neurons[0].bias);
     let b = sigmoid(neurons[1].weight1 * x1 + neurons[1].weight2 * x2 + neurons[1].bias);
     sigmoid(neurons[2].weight1 * a + neurons[2].weight2 * b + neurons[2].bias)
 }
 
-fn cost(neurons: &Vec<Neuron>, train_type: &MLPropertyTypes) -> f64 {
+fn cost(neurons: &[Neuron], train_type: &MLPropertyTypes) -> f64 {
     let mut result: f64 = 0.0;
     let train_set = get_training_data(train_type);
     train_set.iter().for_each(|train_set_i| {
@@ -111,7 +111,7 @@ fn cost(neurons: &Vec<Neuron>, train_type: &MLPropertyTypes) -> f64 {
     result / train_set.len() as f64
 }
 
-fn finite_diff(neurons: &Vec<Neuron>, eps: f64, train_type: &MLPropertyTypes) -> Vec<Neuron> {
+fn finite_diff(neurons: &[Neuron], eps: f64, train_type: &MLPropertyTypes) -> Vec<Neuron> {
     let mut neurons_g: Vec<Neuron> = vec![
         Neuron {
             weight1: 0.0,
@@ -170,7 +170,7 @@ fn finite_diff(neurons: &Vec<Neuron>, eps: f64, train_type: &MLPropertyTypes) ->
     neurons_g
 }
 
-fn train_and_test<'b>(train_type: MLPropertyTypes, embed: &'b mut CreateEmbed) -> &'b CreateEmbed {
+fn train_and_test(train_type: MLPropertyTypes, embed: &mut CreateEmbed) -> &CreateEmbed {
     let mut rng = rand::thread_rng();
 
     let mut neurons_m: Vec<Neuron> = vec![
@@ -194,14 +194,13 @@ fn train_and_test<'b>(train_type: MLPropertyTypes, embed: &'b mut CreateEmbed) -
     let eps = 0.1;
     let rate = 0.1;
 
-    for n in 0..(100 * 1000) {
+    for _n in 0..(300 * 1000) {
         let neurons_g = finite_diff(&neurons_m, eps, &train_type);
         for i in 0..neurons_m.len() {
             neurons_m[i].weight1 -= rate * neurons_g[i].weight1;
             neurons_m[i].weight2 -= rate * neurons_g[i].weight2;
             neurons_m[i].bias -= rate * neurons_g[i].bias;
         }
-        println!("Cost: {}", cost(&neurons_m, &train_type));
     }
 
     embed.description(format!("Cost: {}", cost(&neurons_m, &train_type)));
@@ -211,20 +210,75 @@ fn train_and_test<'b>(train_type: MLPropertyTypes, embed: &'b mut CreateEmbed) -
     for i in 0..2 {
         for j in 0..2 {
             s += format!(
-                "{i} | {j} | {}\n",
+                "{i} | {j} | {:.8}\n",
                 forward(&neurons_m, f64::from(i), f64::from(j))
             )
             .as_str()
         }
     }
+
     embed.field("Output", s, false);
+
+    let mut n1 = String::from("");
+
+    for i in 0..2 {
+        for j in 0..2 {
+            n1 += format!(
+                "{i} | {j} | {:.4}\n",
+                sigmoid(
+                    neurons_m[0].weight1 * f64::from(i)
+                        + neurons_m[0].weight2 * f64::from(j)
+                        + neurons_m[0].bias
+                )
+            )
+            .as_str()
+        }
+    }
+
+    embed.field("Neuron 1", n1, true);
+
+    let mut n2 = String::from("");
+
+    for i in 0..2 {
+        for j in 0..2 {
+            n2 += format!(
+                "{i} | {j} | {:.4}\n",
+                sigmoid(
+                    neurons_m[1].weight1 * f64::from(i)
+                        + neurons_m[1].weight2 * f64::from(j)
+                        + neurons_m[1].bias
+                )
+            )
+            .as_str()
+        }
+    }
+
+    embed.field("Neuron 2", n2, true);
+
+    let mut n3 = String::from("");
+
+    for i in 0..2 {
+        for j in 0..2 {
+            n3 += format!(
+                "{i} | {j} | {:.4}\n",
+                sigmoid(
+                    neurons_m[2].weight1 * f64::from(i)
+                        + neurons_m[2].weight2 * f64::from(j)
+                        + neurons_m[2].bias
+                )
+            )
+            .as_str()
+        }
+    }
+
+    embed.field("Neuron 3", n3, true);
 
     embed
 }
 
 async fn create_field_from_embed_types<'b>(
     embed_types: &Vec<MLPropertyTypes>,
-    params: &Vec<String>,
+    _params: &[String],
     embed: &'b mut CreateEmbed,
 ) -> &'b CreateEmbed {
     for i in embed_types {
@@ -241,16 +295,12 @@ async fn create_field_from_embed_types<'b>(
 
 async fn create_embed_single_stock(embed_type: &str, params: &Vec<String>) -> CreateEmbed {
     let mut embed = CreateEmbed::default();
-    match embed_type {
-        value => {
-            embed.title(format!("ML ({})", value));
-            if let Ok(guild_user_embed_type) = MLPropertyTypes::from_str(value) {
-                let embed_types = vec![guild_user_embed_type];
-                embed = create_field_from_embed_types(&embed_types, params, &mut embed)
-                    .await
-                    .to_owned();
-            }
-        }
+    embed.title(format!("ML ({})", embed_type));
+    if let Ok(guild_user_embed_type) = MLPropertyTypes::from_str(embed_type) {
+        let embed_types = vec![guild_user_embed_type];
+        embed = create_field_from_embed_types(&embed_types, params, &mut embed)
+            .await
+            .to_owned();
     }
     embed
 }
@@ -262,11 +312,8 @@ async fn create_response_stocks(
     let mut embeds = vec![];
     let content = String::from("");
 
-    match stocks.len() {
-        _ => {
-            embeds.push(create_embed_single_stock(embed_type, stocks).await);
-        }
-    }
+    embeds.push(create_embed_single_stock(embed_type, stocks).await);
+
     (content, embeds)
 }
 
@@ -317,7 +364,7 @@ impl AppCmd for MLCmd {
     where
         Self: Sized,
     {
-        let mut selected_stocks = Vec::new();
+        let selected_stocks = Vec::new();
 
         let mut embeds = vec![];
         let mut content = String::from("");

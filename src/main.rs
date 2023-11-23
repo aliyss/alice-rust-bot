@@ -1,8 +1,6 @@
 use discord_bot::setup_client;
 use dotenv::dotenv;
-use serenity::futures::TryStreamExt;
 use std::env;
-use time::macros::datetime;
 
 use tracing::*;
 use tracing_subscriber::EnvFilter;

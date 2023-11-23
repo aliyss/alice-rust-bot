@@ -56,17 +56,16 @@ pub async fn parse_command_members(
 
 pub fn parse_command_array(
     option: &CommandDataOption,
-    context: &Context,
-    cmd: &ApplicationCommandInteraction,
+    _context: &Context,
+    _cmd: &ApplicationCommandInteraction,
 ) -> Vec<String> {
     let mut items = Vec::new();
 
-    let mut string_value: String = String::from("");
     if let Some(option_value) = option.value.clone() {
         items = option_value
             .as_str()
             .unwrap_or("")
-            .split(" ")
+            .split(' ')
             .map(|s| s.to_string())
             .collect();
     }
